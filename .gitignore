@@ -1,6 +1,10 @@
 node_modules/
-dist/
+.next/
+out/
 .env
-*.db
+.env.local
+.env.production.local
+*.tsbuildinfo
+next-env.d.ts
 .DS_Store
-server/data/
+.vercel

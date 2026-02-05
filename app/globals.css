@@ -1,0 +1,65 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+@layer base {
+  * {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-white text-gray-900;
+  }
+
+  ::selection {
+    @apply bg-brand-100 text-brand-900;
+  }
+}
+
+@layer components {
+  /* Shared input style */
+  .input {
+    @apply w-full rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm
+      outline-none transition-all placeholder:text-gray-400
+      focus:border-brand-500 focus:ring-2 focus:ring-brand-100;
+  }
+
+  /* Primary button */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-brand-600
+      px-4 py-2.5 text-sm font-semibold text-white transition-all
+      hover:bg-brand-700 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed;
+  }
+
+  /* Secondary button */
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-gray-200
+      bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition-all
+      hover:bg-gray-50 active:scale-[0.98];
+  }
+
+  /* Danger button */
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-red-500
+      px-4 py-2.5 text-sm font-semibold text-white transition-all
+      hover:bg-red-600 active:scale-[0.98];
+  }
+
+  /* Card */
+  .card {
+    @apply rounded-xl border border-gray-100 bg-white p-5 shadow-sm;
+  }
+
+  /* Label */
+  .label {
+    @apply mb-1.5 block text-sm font-medium text-gray-700;
+  }
+
+  /* Error text */
+  .error-text {
+    @apply mt-1 text-xs text-red-500;
+  }
+}
