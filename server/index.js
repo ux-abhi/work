@@ -235,9 +235,15 @@ if (process.env.NODE_ENV === 'production') {
   });
 }
 
-app.listen(PORT, () => {
-  console.log(`SmartLink server running on http://localhost:${PORT}`);
-});
+// Only start listening when running directly (not on Vercel)
+if (!process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`SmartLink server running on http://localhost:${PORT}`);
+  });
+}
+
+// Export for Vercel serverless function
+module.exports = app;
 
 // --- Utility functions ---
 
