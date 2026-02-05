@@ -1,0 +1,142 @@
+/**
+ * Predefined visual templates for smart link pages.
+ * Each template defines colors, gradients, and styling used
+ * when rendering the public smart link page.
+ */
+const templates = [
+  {
+    id: 'minimal',
+    name: 'Minimal',
+    description: 'Clean and simple',
+    preview: {
+      background: '#ffffff',
+      cardBg: '#f5f5f7',
+      text: '#1d1d1f',
+      accent: '#0071e3',
+    },
+    css: {
+      background: 'linear-gradient(180deg, #ffffff 0%, #f5f5f7 100%)',
+      cardBackground: '#ffffff',
+      cardBorder: '1px solid rgba(0,0,0,0.06)',
+      cardShadow: '0 1px 3px rgba(0,0,0,0.04)',
+      textColor: '#1d1d1f',
+      subtextColor: '#86868b',
+      accentColor: '#0071e3',
+      hoverTransform: 'translateY(-1px)',
+      borderRadius: '14px',
+    },
+  },
+  {
+    id: 'dark',
+    name: 'Midnight',
+    description: 'Sleek dark mode',
+    preview: {
+      background: '#1d1d1f',
+      cardBg: '#2d2d2f',
+      text: '#f5f5f7',
+      accent: '#6e6eff',
+    },
+    css: {
+      background: 'linear-gradient(180deg, #000000 0%, #1d1d1f 100%)',
+      cardBackground: 'rgba(255,255,255,0.06)',
+      cardBorder: '1px solid rgba(255,255,255,0.08)',
+      cardShadow: '0 2px 8px rgba(0,0,0,0.3)',
+      textColor: '#f5f5f7',
+      subtextColor: 'rgba(255,255,255,0.5)',
+      accentColor: '#6e6eff',
+      hoverTransform: 'translateY(-1px)',
+      borderRadius: '14px',
+    },
+  },
+  {
+    id: 'ocean',
+    name: 'Ocean',
+    description: 'Cool blue tones',
+    preview: {
+      background: '#0c1445',
+      cardBg: '#1a2980',
+      text: '#ffffff',
+      accent: '#00d2ff',
+    },
+    css: {
+      background: 'linear-gradient(135deg, #0c1445 0%, #1a2980 50%, #0c1445 100%)',
+      cardBackground: 'rgba(255,255,255,0.08)',
+      cardBorder: '1px solid rgba(255,255,255,0.12)',
+      cardShadow: '0 4px 16px rgba(0,0,0,0.2)',
+      textColor: '#ffffff',
+      subtextColor: 'rgba(255,255,255,0.6)',
+      accentColor: '#00d2ff',
+      hoverTransform: 'translateY(-2px)',
+      borderRadius: '16px',
+    },
+  },
+  {
+    id: 'sunset',
+    name: 'Sunset',
+    description: 'Warm gradient',
+    preview: {
+      background: '#ff6b6b',
+      cardBg: '#ffa07a',
+      text: '#ffffff',
+      accent: '#ffe66d',
+    },
+    css: {
+      background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 50%, #ff9a76 100%)',
+      cardBackground: 'rgba(255,255,255,0.15)',
+      cardBorder: '1px solid rgba(255,255,255,0.2)',
+      cardShadow: '0 4px 16px rgba(0,0,0,0.1)',
+      textColor: '#ffffff',
+      subtextColor: 'rgba(255,255,255,0.75)',
+      accentColor: '#ffffff',
+      hoverTransform: 'translateY(-2px)',
+      borderRadius: '16px',
+    },
+  },
+  {
+    id: 'forest',
+    name: 'Forest',
+    description: 'Natural green tones',
+    preview: {
+      background: '#0b3d0b',
+      cardBg: '#1a5e1a',
+      text: '#e8f5e9',
+      accent: '#69f0ae',
+    },
+    css: {
+      background: 'linear-gradient(135deg, #0b3d0b 0%, #1b5e20 50%, #2e7d32 100%)',
+      cardBackground: 'rgba(255,255,255,0.08)',
+      cardBorder: '1px solid rgba(255,255,255,0.1)',
+      cardShadow: '0 4px 16px rgba(0,0,0,0.2)',
+      textColor: '#e8f5e9',
+      subtextColor: 'rgba(232,245,233,0.6)',
+      accentColor: '#69f0ae',
+      hoverTransform: 'translateY(-2px)',
+      borderRadius: '14px',
+    },
+  },
+  {
+    id: 'glass',
+    name: 'Glass',
+    description: 'Frosted glass effect',
+    preview: {
+      background: '#667eea',
+      cardBg: 'rgba(255,255,255,0.2)',
+      text: '#ffffff',
+      accent: '#ffffff',
+    },
+    css: {
+      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      cardBackground: 'rgba(255,255,255,0.12)',
+      cardBorder: '1px solid rgba(255,255,255,0.18)',
+      cardShadow: '0 8px 32px rgba(0,0,0,0.12)',
+      textColor: '#ffffff',
+      subtextColor: 'rgba(255,255,255,0.7)',
+      accentColor: '#ffffff',
+      hoverTransform: 'translateY(-2px) scale(1.01)',
+      borderRadius: '20px',
+      backdropFilter: 'blur(12px)',
+    },
+  },
+];
+
+module.exports = templates;
