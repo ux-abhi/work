@@ -1,108 +1,187 @@
-'use client';
+import { createClient } from '@/lib/supabase/server';
+import { redirect } from 'next/navigation';
+import { formatNumber } from '@/lib/utils';
 
-import { useEffect, useState } from 'react';
+export default async function AnalyticsPage() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
 
-interface Stats {
-  totalViews: number;
-  totalClicks: number;
-  totalScans: number;
-  days: { date: string; views: number; clicks: number }[];
-  topBlocks: { block_id: string; count: number }[];
-}
+  if (!user) {
+    redirect('/login');
+  }
 
-/** Analytics dashboard — shows views, clicks, QR scans over time */
-export default function AnalyticsPage() {
-  const [stats, setStats] = useState<Stats | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('user_id', user.id)
+    .single();
 
-  useEffect(() => {
-    fetch('/api/stats')
-      .then((r) => r.json())
-      .then((d) => { setStats(d); setLoading(false); })
-      .catch(() => setLoading(false));
-  }, []);
+  if (!profile) {
+    redirect('/dashboard');
+  }
 
-  if (loading) return <p className="text-sm text-gray-400">Loading analytics...</p>;
-  if (!stats) return <p className="text-sm text-gray-400">Could not load analytics.</p>;
+  // Get all links for this profile
+  const { data: links } = await supabase
+    .from('links')
+    .select('*')
+    .eq('profile_id', profile.id);
 
-  const maxDay = Math.max(...stats.days.map((d) => d.views + d.clicks), 1);
+  // Get click analytics
+  const { data: clickData } = await supabase
+    .from('click_analytics')
+    .select('*')
+    .eq('profile_id', profile.id)
+    .order('clicked_at', { ascending: false })
+    .limit(1000);
+
+  // Calculate stats
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const weekAgo = new Date(today);
+  weekAgo.setDate(weekAgo.getDate() - 7);
+
+  const monthAgo = new Date(today);
+  monthAgo.setMonth(monthAgo.getMonth() - 1);
+
+  const totalClicks = clickData?.length || 0;
+  const todayClicks = clickData?.filter(c => new Date(c.clicked_at) >= today).length || 0;
+  const weekClicks = clickData?.filter(c => new Date(c.clicked_at) >= weekAgo).length || 0;
+  const monthClicks = clickData?.filter(c => new Date(c.clicked_at) >= monthAgo).length || 0;
+
+  // Top links
+  const linkClickCounts = new Map<string, number>();
+  clickData?.forEach(click => {
+    if (click.link_id) {
+      linkClickCounts.set(click.link_id, (linkClickCounts.get(click.link_id) || 0) + 1);
+    }
+  });
+
+  const topLinks = links
+    ?.map(link => ({
+      ...link,
+      clicks: linkClickCounts.get(link.id) || 0,
+    }))
+    .sort((a, b) => b.clicks - a.clicks)
+    .slice(0, 5);
+
+  // Clicks by country
+  const countryCounts = new Map<string, number>();
+  clickData?.forEach(click => {
+    const country = click.country || 'Unknown';
+    countryCounts.set(country, (countryCounts.get(country) || 0) + 1);
+  });
+
+  const topCountries = Array.from(countryCounts.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5);
+
+  // Last 7 days clicks
+  const last7Days = Array.from({ length: 7 }, (_, i) => {
+    const date = new Date(today);
+    date.setDate(date.getDate() - (6 - i));
+    return date;
+  });
+
+  const clicksByDay = last7Days.map(date => {
+    const nextDay = new Date(date);
+    nextDay.setDate(nextDay.getDate() + 1);
+    const count = clickData?.filter(c => {
+      const clickDate = new Date(c.clicked_at);
+      return clickDate >= date && clickDate < nextDay;
+    }).length || 0;
+    return {
+      date: date.toLocaleDateString('en-US', { weekday: 'short' }),
+      clicks: count,
+    };
+  });
+
+  const maxDayClicks = Math.max(...clicksByDay.map(d => d.clicks), 1);
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
-      <h2 className="text-lg font-semibold">Analytics</h2>
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-3xl font-bold text-white">Analytics</h1>
+        <p className="text-gray-400">Track your link performance</p>
+      </div>
 
-      {/* Summary cards */}
-      <div className="grid grid-cols-3 gap-3">
-        <div className="card text-center">
-          <p className="text-2xl font-bold text-brand-600">{stats.totalViews}</p>
-          <p className="text-xs text-gray-500 mt-0.5">Page Views</p>
-        </div>
-        <div className="card text-center">
-          <p className="text-2xl font-bold text-brand-600">{stats.totalClicks}</p>
-          <p className="text-xs text-gray-500 mt-0.5">Link Clicks</p>
-        </div>
-        <div className="card text-center">
-          <p className="text-2xl font-bold text-brand-600">{stats.totalScans}</p>
-          <p className="text-xs text-gray-500 mt-0.5">QR Scans</p>
+      {/* Stats Grid */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard label="Total Clicks" value={formatNumber(totalClicks)} />
+        <StatCard label="Today" value={formatNumber(todayClicks)} />
+        <StatCard label="This Week" value={formatNumber(weekClicks)} />
+        <StatCard label="This Month" value={formatNumber(monthClicks)} />
+      </div>
+
+      {/* Chart */}
+      <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-6">
+        <h2 className="mb-6 text-lg font-semibold text-white">Last 7 Days</h2>
+        <div className="flex h-48 items-end justify-between gap-2">
+          {clicksByDay.map((day, i) => (
+            <div key={i} className="flex flex-1 flex-col items-center gap-2">
+              <div className="relative w-full flex-1">
+                <div
+                  className="absolute bottom-0 w-full rounded-t bg-white transition-all"
+                  style={{ height: `${(day.clicks / maxDayClicks) * 100}%`, minHeight: day.clicks > 0 ? '4px' : '0' }}
+                />
+              </div>
+              <span className="text-xs text-gray-500">{day.date}</span>
+              <span className="text-xs text-gray-400">{day.clicks}</span>
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* 7-day bar chart */}
-      <div className="card">
-        <h3 className="text-sm font-semibold mb-4">Last 7 Days</h3>
-        <div className="flex items-end gap-2 h-32">
-          {stats.days.map((day) => {
-            const total = day.views + day.clicks;
-            const height = Math.max((total / maxDay) * 100, 4);
-            const label = new Date(day.date + 'T00:00:00').toLocaleDateString('en', { weekday: 'short' });
-            return (
-              <div key={day.date} className="flex-1 flex flex-col items-center gap-1">
-                <span className="text-[10px] text-gray-400 font-medium">{total}</span>
-                <div className="w-full flex flex-col gap-0.5" style={{ height: `${height}%` }}>
-                  <div
-                    className="flex-1 rounded-t bg-brand-400"
-                    title={`${day.views} views`}
-                    style={{ flex: day.views }}
-                  />
-                  {day.clicks > 0 && (
-                    <div
-                      className="rounded-b bg-brand-200"
-                      title={`${day.clicks} clicks`}
-                      style={{ flex: day.clicks }}
-                    />
-                  )}
+      <div className="grid gap-8 lg:grid-cols-2">
+        {/* Top Links */}
+        <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-6">
+          <h2 className="mb-4 text-lg font-semibold text-white">Top Links</h2>
+          {topLinks && topLinks.length > 0 ? (
+            <div className="space-y-3">
+              {topLinks.map((link, i) => (
+                <div key={link.id} className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm text-gray-500">{i + 1}</span>
+                    <span className="text-white truncate max-w-[200px]">{link.title}</span>
+                  </div>
+                  <span className="text-gray-400">{formatNumber(link.clicks)} clicks</span>
                 </div>
-                <span className="text-[10px] text-gray-400">{label}</span>
-              </div>
-            );
-          })}
+              ))}
+            </div>
+          ) : (
+            <p className="text-gray-500">No click data yet</p>
+          )}
         </div>
-        <div className="mt-3 flex items-center gap-4 text-[10px] text-gray-400">
-          <span className="flex items-center gap-1">
-            <span className="inline-block h-2 w-2 rounded-sm bg-brand-400" /> Views
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="inline-block h-2 w-2 rounded-sm bg-brand-200" /> Clicks
-          </span>
+
+        {/* Top Countries */}
+        <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-6">
+          <h2 className="mb-4 text-lg font-semibold text-white">Top Countries</h2>
+          {topCountries.length > 0 ? (
+            <div className="space-y-3">
+              {topCountries.map(([country, count], i) => (
+                <div key={country} className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm text-gray-500">{i + 1}</span>
+                    <span className="text-white">{country}</span>
+                  </div>
+                  <span className="text-gray-400">{formatNumber(count)} clicks</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-gray-500">No location data yet</p>
+          )}
         </div>
       </div>
+    </div>
+  );
+}
 
-      {/* Top blocks */}
-      {stats.topBlocks.length > 0 && (
-        <div className="card">
-          <h3 className="text-sm font-semibold mb-3">Top Clicked Blocks</h3>
-          <div className="space-y-2">
-            {stats.topBlocks.map((b, i) => (
-              <div key={b.block_id} className="flex items-center justify-between text-sm">
-                <span className="text-gray-600 truncate">
-                  #{i + 1} &middot; {b.block_id.slice(0, 8)}...
-                </span>
-                <span className="font-semibold text-brand-600">{b.count} clicks</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+function StatCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-6">
+      <p className="text-sm text-gray-400">{label}</p>
+      <p className="mt-1 text-3xl font-bold text-white">{value}</p>
     </div>
   );
 }

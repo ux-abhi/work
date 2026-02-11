@@ -1,42 +1,87 @@
+import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
-import { createServerClient } from '@/lib/supabase/server';
-import BlockList from '@/components/blocks/BlockList';
-import type { Block, Persona, Profile } from '@/types/blocks';
+import { LinksList } from '@/components/dashboard/links-list';
+import { ProfilePreview } from '@/components/dashboard/profile-preview';
+import { QuickStats } from '@/components/dashboard/quick-stats';
 
-/** Dashboard home — block management page */
 export default async function DashboardPage() {
-  const supabase = createServerClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect('/login');
 
-  const { data: profileRow } = await supabase
+  if (!user) {
+    redirect('/login');
+  }
+
+  const { data: userData } = await supabase
+    .from('users')
+    .select('*')
+    .eq('id', user.id)
+    .single();
+
+  const { data: profile } = await supabase
     .from('profiles')
     .select('*')
     .eq('user_id', user.id)
     .single();
 
-  if (!profileRow) redirect('/onboarding');
-  // After redirect (which throws), TypeScript narrows to `never`.
-  // Use an explicit cast to recover the correct type.
-  const profile = profileRow as unknown as Profile;
-
-  const { data: blocks } = await supabase
-    .from('blocks')
+  const { data: links } = await supabase
+    .from('links')
     .select('*')
-    .eq('profile_id', profile.id)
-    .order('position');
+    .eq('profile_id', profile?.id)
+    .order('position', { ascending: true });
+
+  const { data: socialLinks } = await supabase
+    .from('social_links')
+    .select('*')
+    .eq('profile_id', profile?.id)
+    .order('position', { ascending: true });
+
+  // Get click stats
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const { count: totalClicks } = await supabase
+    .from('click_analytics')
+    .select('*', { count: 'exact', head: true })
+    .eq('profile_id', profile?.id);
+
+  const { count: todayClicks } = await supabase
+    .from('click_analytics')
+    .select('*', { count: 'exact', head: true })
+    .eq('profile_id', profile?.id)
+    .gte('clicked_at', today.toISOString());
 
   return (
-    <div className="mx-auto max-w-2xl">
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Content Blocks</h2>
-        <span className="text-xs text-gray-400">{(blocks || []).length} blocks</span>
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-3xl font-bold text-white">Dashboard</h1>
+        <p className="text-gray-400">Manage your links and profile</p>
       </div>
-      <BlockList
-        profileId={profile.id}
-        persona={profile.persona as Persona}
-        initialBlocks={(blocks || []) as unknown as Block[]}
+
+      <QuickStats
+        totalClicks={totalClicks || 0}
+        todayClicks={todayClicks || 0}
+        totalLinks={links?.length || 0}
+        username={userData?.username || ''}
       />
+
+      <div className="grid gap-8 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <LinksList
+            links={links || []}
+            socialLinks={socialLinks || []}
+            profileId={profile?.id || ''}
+          />
+        </div>
+        <div>
+          <ProfilePreview
+            user={userData}
+            profile={profile}
+            links={links || []}
+            socialLinks={socialLinks || []}
+          />
+        </div>
+      </div>
     </div>
   );
 }

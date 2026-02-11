@@ -1,37 +1,33 @@
 import { redirect } from 'next/navigation';
-import { createServerClient } from '@/lib/supabase/server';
-import Sidebar from '@/components/dashboard/Sidebar';
-import Header from '@/components/dashboard/Header';
-import type { Profile } from '@/types/blocks';
+import { createClient } from '@/lib/supabase/server';
+import { DashboardNav } from '@/components/dashboard/nav';
 
-/**
- * Dashboard layout: sidebar + header + content.
- * Fetches the user's profile; redirects to onboarding if none exists.
- */
-export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const supabase = createServerClient();
+export const dynamic = 'force-dynamic';
+
+export default async function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  if (!user) redirect('/login');
+  if (!user) {
+    redirect('/login');
+  }
 
-  const { data: profileRow } = await supabase
-    .from('profiles')
+  const { data: userData } = await supabase
+    .from('users')
     .select('*')
-    .eq('user_id', user.id)
+    .eq('id', user.id)
     .single();
 
-  if (!profileRow) redirect('/onboarding');
-  const profile = profileRow as unknown as Profile;
-
   return (
-    <div className="flex h-dvh overflow-hidden">
-      <Sidebar />
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <Header profile={profile as unknown as Profile} />
-        <main className="flex-1 overflow-y-auto bg-gray-50/50 p-6">
-          {children}
-        </main>
-      </div>
+    <div className="min-h-screen bg-black">
+      <DashboardNav user={userData} />
+      <main className="mx-auto max-w-6xl px-4 py-8">
+        {children}
+      </main>
     </div>
   );
 }

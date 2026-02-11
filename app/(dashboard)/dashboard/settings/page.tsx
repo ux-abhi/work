@@ -1,129 +1,195 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import type { Profile } from '@/types/blocks';
+import type { User, Profile, Theme } from '@/types';
+import { themes } from '@/lib/themes';
 
-/** Settings page — edit profile, choose template, toggle publish */
 export default function SettingsPage() {
+  const router = useRouter();
+  const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
-  const supabase = createClient();
+
+  // Form state
+  const [username, setUsername] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [bio, setBio] = useState('');
+  const [theme, setTheme] = useState<Theme>('dark');
 
   useEffect(() => {
-    async function load() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data } = await supabase.from('profiles').select('*').eq('user_id', user.id).single();
-      if (data) setProfile(data as unknown as Profile);
-    }
-    load();
+    loadData();
   }, []);
 
-  async function handleSave() {
-    if (!profile) return;
+  const loadData = async () => {
+    const supabase = createClient();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+
+    if (!authUser) {
+      router.push('/login');
+      return;
+    }
+
+    const { data: userData } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', authUser.id)
+      .single();
+
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('user_id', authUser.id)
+      .single();
+
+    if (userData) {
+      setUser(userData);
+      setUsername(userData.username || '');
+      setFullName(userData.full_name || '');
+    }
+
+    if (profileData) {
+      setProfile(profileData);
+      setBio(profileData.bio || '');
+      setTheme(profileData.theme as Theme || 'dark');
+    }
+
+    setLoading(false);
+  };
+
+  const handleSave = async () => {
+    if (!user || !profile) return;
     setSaving(true);
     setMessage('');
 
-    const res = await fetch('/api/profile', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        display_name: profile.display_name,
-        template_id: profile.template_id,
-        is_published: profile.is_published,
-      }),
-    });
+    const supabase = createClient();
 
-    if (res.ok) {
-      setMessage('Saved!');
-    } else {
-      const data = await res.json();
-      setMessage(data.error || 'Failed to save');
+    // Update user
+    const { error: userError } = await supabase
+      .from('users')
+      .update({ username, full_name: fullName })
+      .eq('id', user.id);
+
+    if (userError) {
+      setMessage(`Error: ${userError.message}`);
+      setSaving(false);
+      return;
     }
-    setSaving(false);
-    setTimeout(() => setMessage(''), 2000);
-  }
 
-  if (!profile) {
-    return <p className="text-sm text-gray-400">Loading...</p>;
+    // Update profile
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .update({ bio, theme })
+      .eq('id', profile.id);
+
+    if (profileError) {
+      setMessage(`Error: ${profileError.message}`);
+      setSaving(false);
+      return;
+    }
+
+    setMessage('Settings saved successfully!');
+    setSaving(false);
+    router.refresh();
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-gray-400">Loading...</div>
+      </div>
+    );
   }
 
   return (
-    <div className="mx-auto max-w-lg space-y-6">
-      <h2 className="text-lg font-semibold">Settings</h2>
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-3xl font-bold text-white">Settings</h1>
+        <p className="text-gray-400">Manage your profile settings</p>
+      </div>
 
-      <div className="card space-y-4">
-        <div>
-          <label className="label">Display Name</label>
-          <input
-            className="input"
-            value={profile.display_name}
-            onChange={(e) => setProfile({ ...profile, display_name: e.target.value })}
-          />
-        </div>
+      <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-6">
+        <h2 className="mb-6 text-xl font-semibold text-white">Profile Information</h2>
 
-        <div>
-          <label className="label">URL Slug</label>
-          <p className="text-sm text-gray-500">linkks.co/u/{profile.slug}</p>
-          <p className="text-xs text-gray-400 mt-1">Slug cannot be changed after creation.</p>
-        </div>
-
-        <div>
-          <label className="label">Template</label>
-          <div className="flex gap-2">
-            {['minimal-light', 'minimal-dark'].map((t) => (
-              <button
-                key={t}
-                onClick={() => setProfile({ ...profile, template_id: t })}
-                className={`rounded-lg border-2 px-4 py-2 text-sm font-medium transition-all ${
-                  profile.template_id === t
-                    ? 'border-brand-500 bg-brand-50 text-brand-700'
-                    : 'border-gray-100 text-gray-600 hover:border-gray-200'
-                }`}
-              >
-                {t === 'minimal-light' ? '☀️ Light' : '🌙 Dark'}
-              </button>
-            ))}
+        {message && (
+          <div className={`mb-4 rounded-lg p-3 text-sm ${
+            message.startsWith('Error') ? 'bg-red-500/10 text-red-500' : 'bg-green-500/10 text-green-500'
+          }`}>
+            {message}
           </div>
-        </div>
+        )}
 
-        <div>
-          <label className="flex items-center gap-3">
-            <button
-              onClick={() => setProfile({ ...profile, is_published: !profile.is_published })}
-              className={`w-10 h-6 rounded-full transition-colors relative ${
-                profile.is_published ? 'bg-green-500' : 'bg-gray-200'
-              }`}
-            >
-              <span
-                className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
-                  profile.is_published ? 'translate-x-[18px]' : 'translate-x-0.5'
-                }`}
-              />
-            </button>
-            <span className="text-sm font-medium">
-              {profile.is_published ? 'Published' : 'Unpublished'}
-            </span>
-          </label>
-          <p className="mt-1 text-xs text-gray-400">
-            {profile.is_published
-              ? 'Your page is live and visible to anyone.'
-              : 'Your page is private. Publish to make it accessible.'}
-          </p>
+        <div className="space-y-4">
+          <div>
+            <label className="mb-2 block text-sm text-gray-400">Username</label>
+            <input
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ''))}
+              className="input w-full bg-zinc-800 border-zinc-700 text-white"
+              placeholder="username"
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              Your profile URL: linkcard.com/{username}
+            </p>
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm text-gray-400">Full Name</label>
+            <input
+              type="text"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              className="input w-full bg-zinc-800 border-zinc-700 text-white"
+              placeholder="John Doe"
+            />
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm text-gray-400">Bio</label>
+            <textarea
+              value={bio}
+              onChange={(e) => setBio(e.target.value)}
+              className="input w-full bg-zinc-800 border-zinc-700 text-white min-h-[100px] resize-none"
+              placeholder="Tell people about yourself..."
+              maxLength={500}
+            />
+            <p className="mt-1 text-xs text-gray-500">{bio.length}/500 characters</p>
+          </div>
         </div>
       </div>
 
-      <div className="flex items-center gap-3">
-        <button onClick={handleSave} disabled={saving} className="btn-primary">
+      <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-6">
+        <h2 className="mb-6 text-xl font-semibold text-white">Theme</h2>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {(Object.keys(themes) as Theme[]).map((t) => (
+            <button
+              key={t}
+              onClick={() => setTheme(t)}
+              className={`rounded-lg border-2 p-4 text-left transition-all ${
+                theme === t
+                  ? 'border-white'
+                  : 'border-zinc-700 hover:border-zinc-600'
+              }`}
+            >
+              <div className={`mb-2 h-20 rounded-lg ${themes[t].background}`} />
+              <p className="font-medium text-white">{themes[t].name}</p>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex justify-end">
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="rounded-lg bg-white px-6 py-2 font-medium text-black hover:bg-gray-200 disabled:opacity-50"
+        >
           {saving ? 'Saving...' : 'Save Changes'}
         </button>
-        {message && (
-          <span className={`text-sm font-medium ${message === 'Saved!' ? 'text-green-600' : 'text-red-500'}`}>
-            {message}
-          </span>
-        )}
       </div>
     </div>
   );

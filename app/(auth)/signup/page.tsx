@@ -1,88 +1,123 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 
 export default function SignupPage() {
+  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
-  const supabase = createClient();
 
-  async function handleSubmit(e: React.FormEvent) {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
-    const { error: err } = await supabase.auth.signUp({
+    const supabase = createClient();
+    const { error } = await supabase.auth.signUp({
       email,
       password,
-      options: { emailRedirectTo: `${window.location.origin}/dashboard` },
+      options: {
+        data: {
+          full_name: fullName,
+        },
+      },
     });
 
-    if (err) {
-      setError(err.message);
+    if (error) {
+      setError(error.message);
       setLoading(false);
       return;
     }
 
-    // After signup, redirect to onboarding to set up profile
-    router.push('/onboarding');
+    router.push('/dashboard');
     router.refresh();
-  }
+  };
 
   return (
-    <div className="card">
-      <div className="mb-6 text-center">
-        <h1 className="text-2xl font-bold tracking-tight">Create your account</h1>
-        <p className="mt-1 text-sm text-gray-500">Start building your smart page</p>
+    <div className="w-full max-w-md">
+      <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-8">
+        <div className="mb-8 text-center">
+          <Link href="/" className="text-2xl font-bold text-white">
+            LinkCard
+          </Link>
+          <p className="mt-2 text-gray-400">Create your account</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {error && (
+            <div className="rounded-lg bg-red-500/10 p-3 text-sm text-red-500">
+              {error}
+            </div>
+          )}
+
+          <div>
+            <label htmlFor="fullName" className="mb-2 block text-sm text-gray-400">
+              Full Name
+            </label>
+            <input
+              id="fullName"
+              type="text"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              className="input w-full bg-zinc-800 border-zinc-700 text-white"
+              placeholder="John Doe"
+              required
+            />
+          </div>
+
+          <div>
+            <label htmlFor="email" className="mb-2 block text-sm text-gray-400">
+              Email
+            </label>
+            <input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="input w-full bg-zinc-800 border-zinc-700 text-white"
+              placeholder="you@example.com"
+              required
+            />
+          </div>
+
+          <div>
+            <label htmlFor="password" className="mb-2 block text-sm text-gray-400">
+              Password
+            </label>
+            <input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="input w-full bg-zinc-800 border-zinc-700 text-white"
+              placeholder="••••••••"
+              minLength={6}
+              required
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full rounded-lg bg-white py-3 font-medium text-black hover:bg-gray-200 disabled:opacity-50"
+          >
+            {loading ? 'Creating account...' : 'Create Account'}
+          </button>
+        </form>
+
+        <p className="mt-6 text-center text-sm text-gray-400">
+          Already have an account?{' '}
+          <Link href="/login" className="text-white hover:underline">
+            Sign in
+          </Link>
+        </p>
       </div>
-
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label htmlFor="email" className="label">Email</label>
-          <input
-            id="email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@example.com"
-            className="input"
-            required
-          />
-        </div>
-
-        <div>
-          <label htmlFor="password" className="label">Password</label>
-          <input
-            id="password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Min 6 characters"
-            className="input"
-            required
-            minLength={6}
-          />
-        </div>
-
-        {error && <p className="error-text">{error}</p>}
-
-        <button type="submit" disabled={loading} className="btn-primary w-full">
-          {loading ? 'Creating account...' : 'Create account'}
-        </button>
-      </form>
-
-      <p className="mt-4 text-center text-sm text-gray-500">
-        Already have an account?{' '}
-        <Link href="/login" className="font-medium text-brand-600 hover:text-brand-700">
-          Sign in
-        </Link>
-      </p>
     </div>
   );
 }
